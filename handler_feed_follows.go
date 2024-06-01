@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VladanT3/Go_WebServer/internal/database"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -42,9 +43,27 @@ func (apiCfg *apiConfig) handlerGetFollowedFeeds(w http.ResponseWriter, r *http.
     followed_feeds, err := apiCfg.DB.GetFeedsByUser(r.Context(), user.ID)
 
     if err != nil {
-        respondWithError(w, 400, fmt.Sprintf("Couldn't get feeds: %v", err))
+    respondWithError(w, 400, fmt.Sprintf("Couldn't get feeds: %v", err))
     return
     }
 
     respondWithJSON(w, 200, databaseFeedsToFeeds(followed_feeds))
+}
+
+func (apiCfg *apiConfig) handlerUnfollowFeed(w http.ResponseWriter, r *http.Request, user database.User) {
+    var feedID string = chi.URLParam(r, "feedID")
+    feedUUID, err := uuid.Parse(feedID)
+    if err != nil {
+        respondWithError(w, 400, fmt.Sprintf("Error parsing feedID to UUID: %v" ,err))
+    }
+
+    err = apiCfg.DB.DeleteFeedFollow(r.Context(), database.DeleteFeedFollowParams{
+        UserID: user.ID,
+        FeedID: feedUUID,
+    })
+    if err != nil {
+        respondWithError(w, 500, fmt.Sprintf("Error unfollowing feed: %v" ,err))
+    }
+
+    respondWithJSON(w, 200, struct{}{})
 }
