@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/VladanT3/Go_WebServer/internal/database"
+	"github.com/google/uuid"
 )
 
 func startScraping(db *database.Queries, concurrency int, timeBetweenRequest time.Duration){
@@ -43,8 +45,30 @@ func scrapeFeed(wg *sync.WaitGroup, db *database.Queries, feed database.Feed) {
     }
 
     for _, item := range rssFeed.Channel.Item {
-        log.Printf("Fount post: %v", item.Title)
-    }
-    log.Printf("Feed %s collected, %v posts found", feed.Name, len(rssFeed.Channel.Item))
+        description := sql.NullString{}
+        if item.Description != "" {
+            description.String = item.Description
+            description.Valid = true
+        }
+        pubAt, err := time.Parse(time.RFC1123Z, item.PubDate)
+        if err != nil {
+            log.Printf("Couldn't convert date: %v\n", err)
+            continue
+        }
 
+        _, err = db.CreatePost(context.Background(), database.CreatePostParams{
+            ID: uuid.New(),
+            CreatedAt: time.Now(),
+            UpdatedAt: time.Now(),
+            Title: item.Title,
+            Description: description,
+            PublishedAt: pubAt,
+            Url: item.Link,
+            FeedID: feed.ID,
+        })
+        if err != nil {
+            log.Printf("Error creating new post: %v\n", err)
+        }
+    }
+    log.Printf("Feed %s collected, %v posts found\n", feed.Name, len(rssFeed.Channel.Item))
 }
