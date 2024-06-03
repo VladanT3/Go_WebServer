@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,6 +68,9 @@ func scrapeFeed(wg *sync.WaitGroup, db *database.Queries, feed database.Feed) {
             FeedID: feed.ID,
         })
         if err != nil {
+            if strings.Contains(err.Error(), "duplicate key") {
+                continue
+            }
             log.Printf("Error creating new post: %v\n", err)
         }
     }
